@@ -5,6 +5,27 @@ import pandas as pd
 from scipy.misc import imread
 from alexnet import AlexNet
 
+
+def fully_connected(input_layer, size):
+    """
+    Performs a single fully connected layer pass, e.g. returns `input * weights + bias`.
+    """
+    weights = tf.get_variable(
+        'weights',
+        shape=[input_layer.get_shape().as_list()[-1], size],
+        initializer=tf.contrib.layers.xavier_initializer()
+    )
+    biases = tf.get_variable(
+        'biases',
+        shape=[size],
+        initializer=tf.constant_initializer(0.0)
+    )
+    return tf.matmul(input_layer, weights) + biases
+
+
+def fully_connected_relu(input_layer, size):
+    return tf.nn.relu(fully_connected(input_layer, size))
+
 sign_names = pd.read_csv('signnames.csv')
 nb_classes = 43
 
@@ -14,10 +35,11 @@ resized = tf.image.resize_images(x, (227, 227))
 # NOTE: By setting `feature_extract` to `True` we return
 # the second to last layer.
 fc7 = AlexNet(resized, feature_extract=True)
-# TODO: Define a new fully connected layer followed by a softmax activation to classify
-# the traffic signs. Assign the result of the softmax activation to `probs` below.
-shape = (fc7.get_shape().as_list()[-1], nb_classes)  # use this shape for the weight matrix
-probs = ...
+
+with tf.variable_scope('fc8'):
+    fc8 = fully_connected_relu(fc7, nb_classes)
+
+probs = tf.nn.softmax(fc8)
 
 init = tf.global_variables_initializer()
 sess = tf.Session()
