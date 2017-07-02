@@ -3,8 +3,8 @@ import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from alexnet import AlexNet
-from sklearn.utils import shuffle
 from nolearn.lasagne import BatchIterator
+from keras.datasets import cifar10
 
 
 def fully_connected(input_layer, size):
@@ -20,14 +20,23 @@ def fully_connected(input_layer, size):
     )
     return tf.nn.xw_plus_b(input_layer, weights, biases)
 
+
 def load_pickled_data(file, columns):
     with open(file, mode='rb') as f:
         dataset = pickle.load(f)
     return tuple(map(lambda c: dataset[c], columns))
 
-X_train, y_train = load_pickled_data('train.p', ['features', 'labels'])
-nb_classes = 43
 
+nb_classes = 10
+
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
+y_train = np.squeeze(y_train)
+y_test = np.squeeze(y_test)
+
+print(y_train.shape)
+
+# nb_classes = 43
+# X_train, y_train = load_pickled_data('train.p', ['features', 'labels'])
 X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.25)
 
 tf_x_batch = tf.placeholder(tf.float32, (None, 32, 32, 3))
@@ -80,3 +89,18 @@ with tf.Session() as session:
         accuracy = 100.0 * np.sum(p == y_valid) / p.shape[0]
         loss = np.mean(sce)
         print('Finished epoch {}: valid accuracy = {:.2f}%, loss = {:.4f}'.format(epoch, accuracy, loss))
+    p = []
+    sce = []
+    batch_iterator = BatchIterator(batch_size=128)
+    for x_batch, y_batch in batch_iterator(X_test, y_test):
+        [p_batch, sce_batch] = session.run([predictions, softmax_cross_entropy], feed_dict={
+            tf_x_batch: x_batch,
+            tf_y_batch: y_batch
+        })
+        p.extend(p_batch)
+        sce.extend(sce_batch)
+    p = np.array(p)
+    sce = np.array(sce)
+    accuracy = 100.0 * np.sum(p == y_test) / p.shape[0]
+    loss = np.mean(sce)
+    print('\nTest accuracy = {:.2f}%, loss = {:.4f}'.format(accuracy, loss))
